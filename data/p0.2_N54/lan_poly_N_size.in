@@ -1,0 +1,43 @@
+###variable outfile string L15.17
+###variable L equal 15.17
+
+units lj
+
+newton off
+atom_style      sphere
+boundary        p p p
+comm_modify     mode single vel yes
+
+
+region      boxid block 0.0     $L      0.0       $L      0.0       $L
+#create_box  1 boxid
+include create_box.in
+
+
+######
+include create_np.in
+velocity    all create 1.0 87287 dist gaussian
+
+#####
+include particles.in
+
+###
+fix 1 all langevin 1.0 1.0 0.1 12345
+fix 2 all nve/sphere
+
+###
+pair_style lj/cut 1.
+include pots_lj_lan.in
+
+
+
+minimize          1.0e-4 1.0e-6 1000 1000
+
+thermo_style custom step temp ke pe etotal
+thermo 500
+timestep 0.001
+#dump    id all custom 5000 out_lan_${outfile}.lammpstrj id type radius mass xu yu zu vx vy vz fx fy fz
+dump    id all custom 5000 out_lan_${outfile}.lammpstrj id type radius mass x y z
+run 100000
+
+write_data data.${outfile} nocoeff nofix
