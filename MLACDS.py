@@ -1,15 +1,14 @@
 import numpy as np
 import glob
 from scipy.special import sph_harm
+from scipy.interpolate import CubicSpline
 import pandas as pd
 
 import matplotlib.pyplot as plt #might get rid of automatic plotting later
 
 from tqdm.notebook import tqdm_notebook
 
-##### This are the average results for the 'exact' calculation
-##### This is used to obtain the 'theory' curve
-# ### N=54
+###These are the aevrage results for the "exact" calculation of Diffusion parameter. Will be used for interpolation to give the "theory curve" which can be used as a competitor model for the machine learning
 D_snap = np.array([0.6549626681427589,
  0.5415773484728538,
  0.45611420397539226,
@@ -25,6 +24,10 @@ stdD_snap = np.array([0.03135978350995926,
  0.02964564689529907,
  0.0264751917347454,
  0.02262952233632323])
+
+### Competitor Model - Volume Correction ###
+#takes Local volume as input param
+VolumeCorrection = CubicSpline(p_snap, D_snap) # returns diffusion parameter as output
 
 
 ### Dist Calculation Functions ###
