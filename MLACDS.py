@@ -232,7 +232,7 @@ def cal_sp(x,y,z,r_cut,ls,Np,a):
 
     return ql,n_neighbours
 
-def get_data2(files,f_r_cut1,f_r_cut2,l_s,l_s_names, bo, bo_names, N_N):
+def get_data2(files,dire,f_r_cut1,f_r_cut2,l_s,l_s_names, bo, bo_names, N_N):
 
     #### creating a dataframe with all the data
     df = pd.DataFrame([], columns=l_s_names+bo_names)
@@ -240,7 +240,7 @@ def get_data2(files,f_r_cut1,f_r_cut2,l_s,l_s_names, bo, bo_names, N_N):
     df['n_neighbours'] = []
     df['Ds'] = []
 
-    dire = "data/"+files[0][5:14] #### THIS IS A QUICK FIX
+    dire = "data/"+dire #[0][5:15] #### THIS IS A QUICK FIX
 
     for f in tqdm_notebook(files):
         ######## Getting the seed used for the file name
@@ -252,7 +252,7 @@ def get_data2(files,f_r_cut1,f_r_cut2,l_s,l_s_names, bo, bo_names, N_N):
         seed = seed_tmp[1].split(".dat")[0]
         fop_str = dire+seed+'.str'###File with positions
         fop_Ds = dire+'Ds_'+seed+'.dat'####File with the Ds
-        #print(fop_str,fop_Ds)
+        print(fop_str,fop_Ds)
 
         ######## Reading the x,y,z file and getting the local volume
         data = np.genfromtxt(fop_str,skip_header=0)        
@@ -314,6 +314,7 @@ def get_data2(files,f_r_cut1,f_r_cut2,l_s,l_s_names, bo, bo_names, N_N):
 def load_data(dires, l_s, l_s_names, bo, bo_names, f_r_cut_vol, f_r_cut_sp, N_neighbours):
     path = "data/"
 
+    # df = pd.DataFrame(columns=l_s_names+bo_names+["vol", "n_neighbours", "Ds"])
     df = pd.DataFrame()
     
     for dire in dires:
@@ -330,8 +331,8 @@ def load_data(dires, l_s, l_s_names, bo, bo_names, f_r_cut_vol, f_r_cut_sp, N_ne
     
         ### creating the dataframe with all the data
         # print(bo)
-        tmp_df = get_data2(files,f_r_cut_vol,f_r_cut_sp,l_s,l_s_names, bo, bo_names, N_neighbours)
+        tmp_df = get_data2(files,dire,f_r_cut_vol,f_r_cut_sp,l_s,l_s_names, bo, bo_names, N_neighbours)
         # df = df.append(tmp_df, ignore_index = True, sort=False)
         df = pd.concat([df, tmp_df], ignore_index=True, sort=False)
 
-        return tmp_df
+    return df
