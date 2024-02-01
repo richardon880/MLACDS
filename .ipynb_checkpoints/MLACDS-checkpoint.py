@@ -46,7 +46,7 @@ def min_distance(x0, x1, dimensions):
 
 def vec_r(x0, x1, dimensions):
     """
-    Similar to min distance
+    Similar to min distance, used in bond order calculations
     """
     r = []
     for i in range(0,3):
@@ -60,33 +60,51 @@ def vec_r(x0, x1, dimensions):
 
 
 #### This functions gets the distance to neighbours that are within a r_cut distance.
-def cal_dis(x,y,z,r_cut,ls,Np,a,N_N):
-    n_neighbours = np.zeros(Np)
-    ql = np.zeros((Np,Np))#len(ls)))
+def cal_dis(x,y,z,r_cut,ls,Np,a,N_N, inverse):
+    """
+    x,y,z = float, x y and z position of particle.
+    r_cut = radius of sphere to search for nearest neighbours in
+    ls = arraylike, shape of 3d box which bounds simulation
+    Np = Number of neighbours to stop search at (may be less than in r_cut sphere)
+    a = array of radii of particles
+    N_N = Number nearest neighbours to return ?
+    """
+    n_neighbours = np.zeros(Np) #array to store number of neighbours in for each particle 
+    ql = np.zeros((Np,Np)) #array to store the dist to each neighbour for each particle
     ######### Getting the neighbours list
     ii = []
-    #r_cut = 6*a
-    for i in range(Np):
-        ri = np.array([x[i],y[i],z[i]])
-        tmp = []
-        for j in range(Np):
-            rj = np.array([x[j],y[j],z[j]])
-            d = min_distance(ri, rj, Ls)
-            ### full in
-            if d + a[i] < r_cut[i] and i != j:#r_cut[i] - a[i]:
-                #print(i,j,d)
-                ql[i,j] = 1/d
-                tmp.append(j)
-        ii.append(tmp)
-        n_neighbours[i] = len(tmp)
-            
-    #print(np.sort(ql)[:,-2:])
-    ql = np.sort(ql)[:,-N_N:]
+    #loop through the particles
+    for i in range(Np): #the ith particle
+        ri = np.array([x[i],y[i],z[i]]) #position of ith particle
+        tmp = [] #temp list to store neighbours of current particle
+        for j in range(Np): #the jth particle
+            rj = np.array([x[j],y[j],z[j]]) #position of the jth particle
+            #get the min distance between ith and jth particle taking into account periodic boundary conditions
+            d = min_distance(ri, rj, Ls) 
+
+            if d + a[i] < r_cut[i] and i != j: #if dist from i to j is within r cut and are 2 diff particles
+                #return 1/d if inverse distance else, just dist
+                if inverse == True:
+                    ql[i,j] = 1/d #using 1 over distance
+                elif inverse == False:
+                    ql[i,j] = d #using 1 over distance
+                # print(f"d: {d} \n 1/d: {1/d}")
+                tmp.append(j) #add j to tmp list of neighbours within r cut
+        ii.append(tmp) #add the list of neighbours to the list ii
+        n_neighbours[i] = len(tmp) #add the number of neighbours within r cut to n_neighbours
+        
+    ql = np.sort(ql)[:,-N_N:] #sort the list of distances returning the top N_N nearest neighbours?
     return ql,n_neighbours
 
 ### Volume Calculation Functions ###
 
 def partial_v(R, r, d):
+    """
+    R: float, radius of sphere centered at 0,0,0
+    r: float, radius of sphere centered at d,0,0
+    d: x coord of radius sphere r.
+    returns: volume of the intersection of sphere with radius R and r
+    """
     #calculate the volume of a truncated sphere
     #more info: https://mathworld.wolfram.com/Sphere-SphereIntersection.html
     return np.pi*(R+r-d)**2*(d**2+2*d*r-3*r**2+2*d*R+6*r*R-3*R**2)/12./d
@@ -99,23 +117,24 @@ def cal_v_local(x,y,z,r_cut,Np,a):
     """
     Function to return local volume fraction around all particles.
     x, y, z = Array of coords of all particles
-    a = array of radii of particles
     r_cut = cutoff
     Np = number of particles
+    a = array of radii of particles
+    returns: the local volume fraction phi, of all particles
     """
     v_local = np.zeros(Np) #arr to store values
     for i in range(Np): #over all points
-        ri = np.array([x[i],y[i],z[i]])
-        vp = 0.
-        for j in range(Np):
-            rj = np.array([x[j],y[j],z[j]])
-            d = min_distance(ri, rj, Ls)
+        ri = np.array([x[i],y[i],z[i]]) #get position of ith point
+        vp = 0. #init volume fraction phi to 0
+        for j in range(Np): 
+            rj = np.array([x[j],y[j],z[j]]) #position of jth particle
+            d = min_distance(ri, rj, Ls) #get min distance between i and jth particle with periodic boundary
             ### circles fully encompassed by cut-off radius
-            if d + a[i] < r_cut[i]:#r_cut[i] - a[i]:
+            if d + a[i] < r_cut[i]: #if distance and radius is less than cutoff radius the particle is inside by rcut
                 #print(i,j,d)
-                vp = vp + 4.*np.pi*a[i]**3/3.
+                vp = vp + 4.*np.pi*a[i]**3/3. #calculate and update vp
             ### partially enclosed
-            elif d - a[i] < r_cut[i]:# + a[i]:
+            elif d - a[i] < r_cut[i]: #if distance less particle radius is less than r_cut then is partially indside
                 vp = vp + partial_v(r_cut[i],a[j],d) #truncated sphere v
                 #print(partial_v(a[i],a[j],d))
                 #print(i,j,d,'**')
@@ -142,6 +161,8 @@ def cal_D0():
 def cal_sp(x,y,z,r_cut,ls,Np,a):
     """
     Function to calculate bond order of particles
+
+    Returns: Bond order and nearest neighbours for each particle
     """
     n_neighbours = np.zeros(Np)
 ######### Getting the neighbours list
@@ -236,6 +257,7 @@ def get_data2(files,dire,f_r_cut1,f_r_cut2,l_s,l_s_names, bo, bo_names, N_N):
 
     #### creating a dataframe with all the data
     df = pd.DataFrame([], columns=l_s_names+bo_names)
+    # print(l_s_names)
     df['vol'] = []
     df['n_neighbours'] = []
     df['Ds'] = []
@@ -252,7 +274,7 @@ def get_data2(files,dire,f_r_cut1,f_r_cut2,l_s,l_s_names, bo, bo_names, N_N):
         seed = seed_tmp[1].split(".dat")[0]
         fop_str = dire+seed+'.str'###File with positions
         fop_Ds = dire+'Ds_'+seed+'.dat'####File with the Ds
-        print(fop_str,fop_Ds)
+        # print(fop_str,fop_Ds)
 
         ######## Reading the x,y,z file and getting the local volume
         data = np.genfromtxt(fop_str,skip_header=0)        
@@ -275,9 +297,9 @@ def get_data2(files,dire,f_r_cut1,f_r_cut2,l_s,l_s_names, bo, bo_names, N_N):
         #r_cut = 6*a
         r_cut = f_r_cut2*a
         bond_order, _ = cal_sp(x,y,z,r_cut,bo,Np,a)##cal_sp gets bond order 
-        ql,ns = cal_dis(x,y,z,r_cut,l_s,Np,a,N_N)##cal_dis gets the distance to the l_s 
-                                             ## closest neighbours.
-                                             ## In the function check if you are getting d or 1/d
+        ql,ns = cal_dis(x,y,z,r_cut,l_s,Np,a,N_N, inverse=True)##cal_dis gets the distance to the l_s closest neighbours.
+        ql_1,ns = cal_dis(x,y,z,r_cut,l_s,Np,a,N_N, inverse=False)##cal_dis gets the distance to the l_s 
+
 
         ######## Calculating the average of Dx,Dy and Dz
         D_av = np.zeros(Np)#data[0::3,0]
@@ -289,7 +311,7 @@ def get_data2(files,dire,f_r_cut1,f_r_cut2,l_s,l_s_names, bo, bo_names, N_N):
         D_av = D_av/cal_D0()
 
         ########
-        df2 = pd.DataFrame(np.concatenate((ql, bond_order), axis=1), columns=l_s_names+bo_names)
+        df2 = pd.DataFrame(np.concatenate((ql, ql_1, bond_order), axis=1), columns=l_s_names+bo_names)
         # df2 = pd.DataFrame(ql, columns=l_s_names)
         df2['vol'] = v_local
         df2['n_neighbours'] = ns
