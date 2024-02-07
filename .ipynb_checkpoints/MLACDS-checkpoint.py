@@ -83,17 +83,14 @@ def cal_dis(x,y,z,r_cut,ls,Np,a,N_N, inverse):
             d = min_distance(ri, rj, Ls) 
 
             if d + a[i] < r_cut[i] and i != j: #if dist from i to j is within r cut and are 2 diff particles
-                #return 1/d if inverse distance else, just dist
-                if inverse == True:
-                    ql[i,j] = 1/d #using 1 over distance
-                elif inverse == False:
-                    ql[i,j] = d #using 1 over distance
-                # print(f"d: {d} \n 1/d: {1/d}")
+                ql[i,j] = d
+                
                 tmp.append(j) #add j to tmp list of neighbours within r cut
         ii.append(tmp) #add the list of neighbours to the list ii
         n_neighbours[i] = len(tmp) #add the number of neighbours within r cut to n_neighbours
-        
     ql = np.sort(ql)[:,-N_N:] #sort the list of distances returning the top N_N nearest neighbours?
+    if inverse == True:
+        ql = 1/ql
     return ql,n_neighbours
 
 ### Volume Calculation Functions ###
@@ -333,7 +330,7 @@ def get_data2(files,dire,f_r_cut1,f_r_cut2,l_s,l_s_names, bo, bo_names, N_N):
 
     return df
 
-def load_data(dires, l_s, l_s_names, bo, bo_names, f_r_cut_vol, f_r_cut_sp, N_neighbours):
+def load_data(dires, l_s, l_s_names, bo, bo_names, f_r_cut_vol, f_r_cut_sp, N_neighbours, use_bond_order=True):
     path = "data/"
 
     # df = pd.DataFrame(columns=l_s_names+bo_names+["vol", "n_neighbours", "Ds"])
@@ -353,8 +350,74 @@ def load_data(dires, l_s, l_s_names, bo, bo_names, f_r_cut_vol, f_r_cut_sp, N_ne
     
         ### creating the dataframe with all the data
         # print(bo)
-        tmp_df = get_data2(files,dire,f_r_cut_vol,f_r_cut_sp,l_s,l_s_names, bo, bo_names, N_neighbours)
+        if use_bond_order==True:
+            tmp_df = get_data2(files,dire,f_r_cut_vol,f_r_cut_sp,l_s,l_s_names, bo, bo_names, N_neighbours)
+        else: 
+            tmp_df = get_data2_no_bond_order_or_dist(files,dire,f_r_cut_vol,f_r_cut_sp,l_s,l_s_names, bo, bo_names, N_neighbours)
         # df = df.append(tmp_df, ignore_index = True, sort=False)
         df = pd.concat([df, tmp_df], ignore_index=True, sort=False)
+
+    return df
+
+
+def get_data2_no_bond_order_or_dist(files,dire,f_r_cut1,f_r_cut2,l_s,l_s_names, bo, bo_names, N_N):
+    
+    #### creating a dataframe with all the data
+    df = pd.DataFrame([], columns=l_s_names)
+    df['vol'] = []
+    df['n_neighbours'] = []
+    df['Ds'] = []
+    
+    dire = "data/"+dire #[0][5:15] #### THIS IS A QUICK FIX
+    
+    for f in tqdm_notebook(files):
+        ######## Getting the seed used for the file name
+        ######## File names start contain a long number and this is
+        ######## the seed used for simulating that snap-shot
+        #print(f)
+        seed_tmp = f.split("Ds_")
+        seed = seed_tmp[1].split(".dat")[0]
+        fop_str = dire+seed+'.str'###File with positions
+        fop_Ds = dire+'Ds_'+seed+'.dat'####File with the Ds
+        #print(fop_str,fop_Ds)
+
+        ######## Reading the x,y,z file and getting the local volume
+        data = np.genfromtxt(fop_str,skip_header=0)        
+        x = data[:,3]
+        y = data[:,4]
+        z = data[:,5]
+        a = data[:,6] ###
+        Rs = data[:,1] ###
+        Np = len(x)
+        #print(Np)
+        #r_cut = 4*a
+        r_cut = f_r_cut1*a
+        v_local = cal_v_local(x,y,z,r_cut,Np,a)
+        #print(v_local[:10])
+        # print('seed=',seed,'Mean local vol:',np.mean(v_local))
+
+        ######## Reading the Ds file and getting the distances
+        data = np.genfromtxt(fop_Ds,skip_header=0,skip_footer=0)
+        #data.shape
+        #r_cut = 6*a
+        r_cut = f_r_cut2*a
+
+        ql,ns = cal_dis(x,y,z,r_cut,l_s,Np,a,N_N, inverse=True)##cal_dis gets the distance to the l_s closest neighbours.
+
+        ######## Calculating the average of Dx,Dy and Dz
+        D_av = np.zeros(Np)#data[0::3,0]
+        for j in range(0,3):
+            D_av += data[j::3,0]
+        D_av = D_av/3.
+
+        D_av = np.array(D_av)
+        D_av = D_av/cal_D0()
+
+        ########
+        df2 = pd.DataFrame(ql, columns=l_s_names)
+        df2['vol'] = v_local
+        df2['n_neighbours'] = ns
+        df2['Ds'] = D_av
+        df = pd.concat([df,df2],ignore_index=True)
 
     return df
