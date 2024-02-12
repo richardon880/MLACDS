@@ -4,9 +4,29 @@ from scipy.special import sph_harm
 from scipy.interpolate import CubicSpline
 import pandas as pd
 
-import matplotlib.pyplot as plt #might get rid of automatic plotting later
-
 from tqdm.notebook import tqdm_notebook
+
+np.seterr(divide='ignore')
+
+#volume fraction formula
+def getvolfrac(sim_diameter, N, L):
+    r = (sim_diameter/20)**(1/3)
+    NperV = N/(L**3)
+    phi = 4/3 * np.pi * r**3 * NperV
+    return phi
+
+def findparams(volfrac, N=None, L=None):
+    sim_diameter = 2.5
+    r3 = (sim_diameter/20)
+    
+    if N == None and L == None:
+        return print("Please provide at least one of N or L.")
+    elif N == None and L != None:
+        V = L**3
+        return ((volfrac*V)/r3) * (3/(4*np.pi))
+    elif L == None and N != None:
+        return (((4*np.pi)/3) * r3 * (N/volfrac)) ** (1/3)
+
 
 ###These are the aevrage results for the "exact" calculation of Diffusion parameter. Will be used for interpolation to give the "theory curve" which can be used as a competitor model for the machine learning
 D_snap = np.array([0.6549626681427589,
@@ -80,17 +100,46 @@ def cal_dis(x,y,z,r_cut,ls,Np,a,N_N, inverse):
         for j in range(Np): #the jth particle
             rj = np.array([x[j],y[j],z[j]]) #position of the jth particle
             #get the min distance between ith and jth particle taking into account periodic boundary conditions
-            d = min_distance(ri, rj, Ls) 
+            d = min_distance(ri, rj, Ls)
 
             if d + a[i] < r_cut[i] and i != j: #if dist from i to j is within r cut and are 2 diff particles
+                ###############################################################
+        #         print(d)
+        #         ql[i,j] = d
+        #         tmp.append(j)
+        # ii.append(tmp)
+        # n_neighbours[i] = len(tmp)
+        # if inverse == True:
+        #     ql = np.sort(1/ql)[:,-N_N:] #invert values, sort ascend take largest inverse vals (smallest non iverted distances) 
+        # elif inverse == False:
+        #     ql = -np.sort(-ql)[:,-N_N:] #sort distances in descending take the smallest values (at the end)
+            #################################################################
+    #################################
+    #             ql[i,j] = 1/d
+        #         tmp.append(j)
+        # ii.append(tmp)
+        # n_neighbours[i] = len(tmp)
+            
+    # #print(np.sort(ql)[:,-2:])
+    # ql = np.sort(ql)[:,-N_N:]
+    #################################
                 ql[i,j] = d
-                
                 tmp.append(j) #add j to tmp list of neighbours within r cut
         ii.append(tmp) #add the list of neighbours to the list ii
         n_neighbours[i] = len(tmp) #add the number of neighbours within r cut to n_neighbours
-    ql = np.sort(ql)[:,-N_N:] #sort the list of distances returning the top N_N nearest neighbours?
     if inverse == True:
-        ql = 1/ql
+        ql = -np.sort(-1/ql)[:,:N_N]
+    elif inverse == False:
+        ql = np.sort(ql)[:,:N_N]
+        """
+    if inverse == True:
+        ql = np.sort(1/ql)[:,-N_N:]
+    elif inverse == False:
+        ql = -np.sort(-ql)[:,-N_N:]
+        """
+########################################################
+    # ql = np.sort(ql)[:,-N_N:]
+
     return ql,n_neighbours
 
 ### Volume Calculation Functions ###
@@ -251,9 +300,13 @@ def cal_sp(x,y,z,r_cut,ls,Np,a):
     return ql,n_neighbours
 
 def get_data2(files,dire,f_r_cut1,f_r_cut2,l_s,l_s_names, bo, bo_names, N_N):
-
+    N_N += 1
+    l_s_names_copy = list(l_s_names)
+    l_s_names_copy.insert(0, "drop1")
+    l_s_names_copy.insert(N_N, "drop2")
+    
     #### creating a dataframe with all the data
-    df = pd.DataFrame([], columns=l_s_names+bo_names)
+    df = pd.DataFrame([], columns=l_s_names_copy+bo_names)
     # print(l_s_names)
     df['vol'] = []
     df['n_neighbours'] = []
@@ -308,7 +361,7 @@ def get_data2(files,dire,f_r_cut1,f_r_cut2,l_s,l_s_names, bo, bo_names, N_N):
         D_av = D_av/cal_D0()
 
         ########
-        df2 = pd.DataFrame(np.concatenate((ql, ql_1, bond_order), axis=1), columns=l_s_names+bo_names)
+        df2 = pd.DataFrame(np.concatenate((ql, ql_1, bond_order), axis=1), columns=l_s_names_copy+bo_names)
         # df2 = pd.DataFrame(ql, columns=l_s_names)
         df2['vol'] = v_local
         df2['n_neighbours'] = ns
@@ -317,7 +370,8 @@ def get_data2(files,dire,f_r_cut1,f_r_cut2,l_s,l_s_names, bo, bo_names, N_N):
         # df3 = pd.DataFrame(bond_order, columns=bo_names)
         
         df = pd.concat([df,df2],ignore_index=True)
-
+    print(df.head())
+    # df = df.drop(["drop1", "drop2"], axis=1)
 
 
         ####### Plotting to check the local volume calculation
@@ -325,18 +379,29 @@ def get_data2(files,dire,f_r_cut1,f_r_cut2,l_s,l_s_names, bo, bo_names, N_N):
 
     # plt.plot(p_snap,D_snap,'-o')
     # plt.errorbar(p_snap,D_snap,stdD_snap)
-    print(np.shape(ql))
-    print(np.shape(bond_order))
+    # print(np.shape(ql))
+    # print(np.shape(bond_order))
 
     return df
 
 def load_data(dires, l_s, l_s_names, bo, bo_names, f_r_cut_vol, f_r_cut_sp, N_neighbours, use_bond_order=True):
+    # reset_l_s_names = list(l_s_names)
+    # reset_N_neighbours = N_neighbours
     path = "data/"
 
     # df = pd.DataFrame(columns=l_s_names+bo_names+["vol", "n_neighbours", "Ds"])
     df = pd.DataFrame()
     
     for dire in dires:
+        print(l_s_names)
+
+        # print("altered :",l_s_names)
+        # print("original:",reset_l_s_names)
+        # print("altered NN :",N_neighbours)
+        # print("original NN:",reset_N_neighbours)
+        # l_s_names = reset_l_s_names
+        # N_neighbours = reset_N_neighbours
+        print(dire)
         #### getting the size of the simulation box
         data = np.genfromtxt(path+dire+'nums.dat',skip_header=0,max_rows=1)
         L = data
@@ -357,9 +422,14 @@ def load_data(dires, l_s, l_s_names, bo, bo_names, f_r_cut_vol, f_r_cut_sp, N_ne
         # df = df.append(tmp_df, ignore_index = True, sort=False)
         df = pd.concat([df, tmp_df], ignore_index=True, sort=False)
 
+    print(df)
+    if use_bond_order == True:
+        df = df.drop(["drop1", "drop2"], axis=1)
+    else:
+        df = df.drop(["drop1"], axis=1)
     return df
 
-
+"""
 def get_data2_no_bond_order_or_dist(files,dire,f_r_cut1,f_r_cut2,l_s,l_s_names, bo, bo_names, N_N):
     
     #### creating a dataframe with all the data
@@ -419,5 +489,87 @@ def get_data2_no_bond_order_or_dist(files,dire,f_r_cut1,f_r_cut2,l_s,l_s_names, 
         df2['n_neighbours'] = ns
         df2['Ds'] = D_av
         df = pd.concat([df,df2],ignore_index=True)
+
+    return df
+"""
+
+def get_data2_no_bond_order_or_dist(files,dire,f_r_cut1,f_r_cut2,l_s,l_s_names, bo, bo_names, N_N):
+    N_N += 1
+    l_s_names_copy = list(l_s_names)
+    l_s_names_copy.insert(0, "drop1")
+    
+    #### creating a dataframe with all the data
+    df = pd.DataFrame([], columns=l_s_names)
+    df['vol'] = []
+    df['n_neighbours'] = []
+    df['Ds'] = []
+
+    dire = "data/"+dire #[0][5:15] #### THIS IS A QUICK FIX
+
+    for f in tqdm_notebook(files):
+        ######## Getting the seed used for the file name
+        ######## File names start contain a long number and this is
+        ######## the seed used for simulating that snap-shot
+        #print(f)
+        
+        seed_tmp = f.split("Ds_")
+        seed = seed_tmp[1].split(".dat")[0]
+        fop_str = dire+seed+'.str'###File with positions
+        fop_Ds = dire+'Ds_'+seed+'.dat'####File with the Ds
+        # print(fop_str,fop_Ds)
+
+        ######## Reading the x,y,z file and getting the local volume
+        data = np.genfromtxt(fop_str,skip_header=0)        
+        x = data[:,3]
+        y = data[:,4]
+        z = data[:,5]
+        a = data[:,6] ###
+        Rs = data[:,1] ###
+        Np = len(x)
+        #print(Np)
+        #r_cut = 4*a
+        r_cut = f_r_cut1*a
+        v_local = cal_v_local(x,y,z,r_cut,Np,a)
+        #print(v_local[:10])
+        # print('seed=',seed,'Mean local vol:',np.mean(v_local))
+
+        ######## Reading the Ds file and getting the distances
+        data = np.genfromtxt(fop_Ds,skip_header=0,skip_footer=0)
+        #data.shape
+        #r_cut = 6*a
+        r_cut = f_r_cut2*a
+        ql,ns = cal_dis(x,y,z,r_cut,l_s,Np,a,N_N, inverse=True)##cal_dis gets the distance to the l_s closest neighbours.
+
+        ######## Calculating the average of Dx,Dy and Dz
+        D_av = np.zeros(Np)#data[0::3,0]
+        for j in range(0,3):
+            D_av += data[j::3,0]
+        D_av = D_av/3.
+
+        D_av = np.array(D_av)
+        D_av = D_av/cal_D0()
+
+        ########
+        # print(ql)
+        # print(l_s_names_copy)
+        df2 = pd.DataFrame(ql, columns=l_s_names_copy)
+        # df2 = pd.DataFrame(ql, columns=l_s_names)
+        df2['vol'] = v_local
+        df2['n_neighbours'] = ns
+        df2['Ds'] = D_av
+        
+        # df3 = pd.DataFrame(bond_order, columns=bo_names)
+        
+        df = pd.concat([df,df2],ignore_index=True)
+    # df = df.drop(["drop1", "drop2"], axis=1)
+
+
+        ####### Plotting to check the local volume calculation
+        # plt.plot(v_local,D_av,'.')
+
+    # plt.plot(p_snap,D_snap,'-o')
+    # plt.errorbar(p_snap,D_snap,stdD_snap)
+    # print(np.shape(ql))
+    # print(np.shape(bond_order))
 
     return df
