@@ -51,7 +51,19 @@ VolumeCorrection = CubicSpline(p_snap, D_snap) # returns diffusion parameter as 
 
 
 ### Dist Calculation Functions ###
-def min_distance(x0, x1, dimensions):
+# def min_distance(x0, x1, dimensions):
+#     """
+#     Function Calculates Distance Between 2 points
+#     when using periodic boundary conditions.
+#     x0 = array like len 3 (x,y,z position)
+#     x1 = as above, dist will be calculated between this and x0
+#     dimensions = array like len 3 (x,y,z len of box)
+#     """
+#     delta = np.absolute(x0 - x1) # diff between points
+#     delta = np.where(delta > 0.5 * dimensions, delta - dimensions, delta) #if diff between points is greater than half of the box dimensions then get distance through  
+#     return np.sqrt((delta**2).sum(axis=-1))
+
+def min_distance(x0, x1, dimensions, angular_info=False):
     """
     Function Calculates Distance Between 2 points
     when using periodic boundary conditions.
@@ -60,8 +72,15 @@ def min_distance(x0, x1, dimensions):
     dimensions = array like len 3 (x,y,z len of box)
     """
     delta = np.absolute(x0 - x1) # diff between points
-    delta = np.where(delta > 0.5 * dimensions, delta - dimensions, delta) #if diff between points is greater than half of the box dimensions then get distance through  
-    return np.sqrt((delta**2).sum(axis=-1))
+    delta = np.where(delta > 0.5 * dimensions, delta - dimensions, delta) #if diff between points is greater than half of the box dimensions then get distance through
+    R = np.sqrt((delta**2).sum(axis=-1))
+    if angular_info == False:
+        return R
+    else:
+        angx = delta[0]/(R**2)
+        angy = delta[1]/(R**2)
+        angz = delta[2]/(R**2)
+        return R, angx, angy, angz
 
 
 def vec_r(x0, x1, dimensions):
@@ -80,7 +99,7 @@ def vec_r(x0, x1, dimensions):
 
 
 #### This functions gets the distance to neighbours that are within a r_cut distance.
-def cal_dis(x,y,z,r_cut,ls,Np,a,N_N, inverse):
+def cal_dis(x,y,z,r_cut,ls,Np,a,N_N, inverse, angular_info=False):
     """
     x,y,z = float, x y and z position of particle.
     r_cut = radius of sphere to search for nearest neighbours in
@@ -94,52 +113,46 @@ def cal_dis(x,y,z,r_cut,ls,Np,a,N_N, inverse):
     ######### Getting the neighbours list
     ii = []
     #loop through the particles
-    for i in range(Np): #the ith particle
-        ri = np.array([x[i],y[i],z[i]]) #position of ith particle
-        tmp = [] #temp list to store neighbours of current particle
-        for j in range(Np): #the jth particle
-            rj = np.array([x[j],y[j],z[j]]) #position of the jth particle
-            #get the min distance between ith and jth particle taking into account periodic boundary conditions
-            d = min_distance(ri, rj, Ls)
-
-            if d + a[i] < r_cut[i] and i != j: #if dist from i to j is within r cut and are 2 diff particles
-                ###############################################################
-        #         print(d)
-        #         ql[i,j] = d
-        #         tmp.append(j)
-        # ii.append(tmp)
-        # n_neighbours[i] = len(tmp)
-        # if inverse == True:
-        #     ql = np.sort(1/ql)[:,-N_N:] #invert values, sort ascend take largest inverse vals (smallest non iverted distances) 
-        # elif inverse == False:
-        #     ql = -np.sort(-ql)[:,-N_N:] #sort distances in descending take the smallest values (at the end)
-            #################################################################
-    #################################
-    #             ql[i,j] = 1/d
-        #         tmp.append(j)
-        # ii.append(tmp)
-        # n_neighbours[i] = len(tmp)
+    if angular_info == False:
+        for i in range(Np): #the ith particle
+            ri = np.array([x[i],y[i],z[i]]) #position of ith particle
+            tmp = [] #temp list to store neighbours of current particle
+            for j in range(Np): #the jth particle
+                rj = np.array([x[j],y[j],z[j]]) #position of the jth particle
+                #get the min distance between ith and jth particle taking into account periodic boundary conditions
+                d = min_distance(ri, rj, Ls)
+    
+                if d + a[i] < r_cut[i] and i != j: #if dist from i to j is within r cut and are 2 diff particles
+        
+                    ql[i,j] = d
+                    tmp.append(j) #add j to tmp list of neighbours within r cut
+            ii.append(tmp) #add the list of neighbours to the list ii
+            n_neighbours[i] = len(tmp) #add the number of neighbours within r cut to n_neighbours
+        if inverse == True:
+            ql = -np.sort(-1/ql)[:,:N_N]
+        elif inverse == False:
+            ql = np.sort(ql)[:,:N_N]
             
-    # #print(np.sort(ql)[:,-2:])
-    # ql = np.sort(ql)[:,-N_N:]
-    #################################
-                ql[i,j] = d
-                tmp.append(j) #add j to tmp list of neighbours within r cut
-        ii.append(tmp) #add the list of neighbours to the list ii
-        n_neighbours[i] = len(tmp) #add the number of neighbours within r cut to n_neighbours
-    if inverse == True:
-        ql = -np.sort(-1/ql)[:,:N_N]
-    elif inverse == False:
-        ql = np.sort(ql)[:,:N_N]
-        """
-    if inverse == True:
-        ql = np.sort(1/ql)[:,-N_N:]
-    elif inverse == False:
-        ql = -np.sort(-ql)[:,-N_N:]
-        """
-########################################################
-    # ql = np.sort(ql)[:,-N_N:]
-
+    elif angular_info == True:
+        for i in range(Np): #the ith particle
+            ri = np.array([x[i],y[i],z[i]]) #position of ith particle
+            tmp = [] #temp list to store neighbours of current particle
+            for j in range(Np): #the jth particle
+                rj = np.array([x[j],y[j],z[j]]) #position of the jth particle
+                #get the min distance between ith and jth particle taking into account periodic boundary conditions
+                d, ang_info = min_distance(ri, rj, Ls, angular_info=True)
+    
+                if d + a[i] < r_cut[i] and i != j: #if dist from i to j is within r cut and are 2 diff particles
+        
+                    ql[i,j] = (d, ang_info)
+                    tmp.append(j) #add j to tmp list of neighbours within r cut
+            ii.append(tmp) #add the list of neighbours to the list ii
+            n_neighbours[i] = len(tmp) #add the number of neighbours within r cut to n_neighbours
+        if inverse == True:
+            ql = -np.sort(-1/ql[0])[:,:N_N]
+        elif inverse == False:
+            ql = np.sort(ql[0])[:,:N_N]
+            
     return ql,n_neighbours
 
 ### Volume Calculation Functions ###
@@ -299,7 +312,7 @@ def cal_sp(x,y,z,r_cut,ls,Np,a):
 
     return ql,n_neighbours
 
-def get_data2(files,dire,f_r_cut1,f_r_cut2,l_s,l_s_names, bo, bo_names, N_N):
+def get_data2(files,dire,f_r_cut1,f_r_cut2,l_s,l_s_names, bo, bo_names, N_N, angular_info=False):
     N_N += 1
     l_s_names_copy = list(l_s_names)
     l_s_names_copy.insert(0, "drop1")
@@ -346,8 +359,12 @@ def get_data2(files,dire,f_r_cut1,f_r_cut2,l_s,l_s_names, bo, bo_names, N_N):
         #data.shape
         #r_cut = 6*a
         r_cut = f_r_cut2*a
-        bond_order, _ = cal_sp(x,y,z,r_cut,bo,Np,a)##cal_sp gets bond order 
-        ql,ns = cal_dis(x,y,z,r_cut,l_s,Np,a,N_N, inverse=True)##cal_dis gets the distance to the l_s closest neighbours.
+        bond_order, _ = cal_sp(x,y,z,r_cut,bo,Np,a)##cal_sp gets bond order
+        if angular_info == False:
+            ql,ns = cal_dis(x,y,z,r_cut,l_s,Np,a,N_N, inverse=True)##cal_dis gets the distance to the l_s closest neighbours.
+        elif angular_info == True:
+            ql,ns = cal_dis(x,y,z,r_cut,l_s,Np,a,N_N, inverse=True)##cal_dis gets the distance to the l_s closest neighbours.
+            
         ql_1,ns = cal_dis(x,y,z,r_cut,l_s,Np,a,N_N, inverse=False)##cal_dis gets the distance to the l_s 
 
 
@@ -573,3 +590,99 @@ def get_data2_no_bond_order_or_dist(files,dire,f_r_cut1,f_r_cut2,l_s,l_s_names, 
     # print(np.shape(bond_order))
 
     return df
+
+def make_dict(num_neighbours, dist, dist_inv, bond_order):
+    if dist == True:
+        dist_names = [f"l_{i}" for i in range(0,num_neighbours)]
+    if dist_inv == True:
+        dist_inv_names = [f"l_{i}_inv" for i in range(0,num_neighbours)]
+    if bond_order == True:
+        bo_names = [f"bo_{i}" for i in range(0,num_neighbours)]
+    keys = dist_names + dist_inv_names + bo_names + ["vol", "n_neighbours", "Ds"]
+    values = [[] for i in range(len(keys))]
+    colname_dict = dict(zip(keys, values))
+    return colname_dict
+
+def get_data(path, dires, r_cut1, r_cut2, num_neighbours, dist=True, dist_inv=True, angular=True, bond_order=True):
+    dires = [path+dire for dire in dires]
+    neighbour_index = list(range(0,num_neighbours))
+    dataframe_dict = make_dict(num_neighbours, dist, dist_inv, bond_order)
+    colnames = list(dataframe_dict.keys())
+    for dire in dires:
+        #call function to get filenames from dires and box size for later
+        files = get_filenames(dire)
+        global Ls
+        Ls = getboxsize(dire)
+    #call function to iterate over files get position info, ds info
+        for f in tqdm_notebook(files):
+            data_tmp = np.array([])
+            seed_tmp = f.split("Ds_")
+            seed = seed_tmp[1].split(".dat")[0]
+            fop_str = dire+seed+'.str'
+            fop_Ds = dire+'Ds_'+seed+'.dat'
+            position_data = np.genfromtxt(fop_str, skip_header=0)  
+            diffusion_data = np.genfromtxt(fop_Ds, skip_header=0, skip_footer=0)
+            x = position_data[:,3]
+            y = position_data[:,4]
+            z = position_data[:,5]
+            a = position_data[:,6]
+            Np = len(x)
+            #call function to calculate vlocal + other features
+            D_av = avg_diffusion_data(diffusion_data, Np)
+            local_vol_cut = r_cut1*a
+            feature_cut = r_cut2*a
+            v_local = cal_v_local(x,y,z,local_vol_cut,Np,a)
+            if bond_order == True:
+                bond_order_data, _ = cal_sp(x,y,z,feature_cut,neighbour_index,Np,a)
+            else:
+                bond_order_data = np.array([])
+    
+            if dist == True:
+                nearest_neighbour_dists, num_nearby = cal_dis(x,y,z,feature_cut,neighbour_index,Np,a,num_neighbours+1, inverse=False)
+            else:
+                nearest_neighbour_dists = np.array([])
+    
+            if dist_inv == True:
+                nearest_neighbour_inv_dists, num_nearby = cal_dis(x,y,z,feature_cut,neighbour_index,Np,a,num_neighbours+1, inverse=True)
+            else:
+                nearest_neighbour_inv_dists = np.array([])
+            data_tmp = np.vstack((nearest_neighbour_dists.T[1:],
+                                 nearest_neighbour_inv_dists.T[1:], bond_order_data.T, 
+                                 v_local, np.full(len(v_local), num_nearby), D_av))
+            for i in range(len(colnames)):
+                dataframe_dict[colnames[i]] = np.append(dataframe_dict[colnames[i]], data_tmp[i])
+
+    df = pd.DataFrame(dataframe_dict)
+    return dataframe_dict
+
+
+
+def get_filenames(dire):
+    files = glob.glob(dire+"Ds_*")
+    return files
+
+def getboxsize(dire):
+    L = np.genfromtxt(dire+'nums.dat',skip_header=0,max_rows=1)
+    box_dims = np.array([L,L,L])
+    return box_dims
+
+def get_simulation_data(dire, files):
+    for f in tqdm_notebook(files):
+        seed_tmp = f.split("Ds_")
+        seed = seed_tmp[1].split(".dat")[0]
+        fop_str = dire+seed+'.str'
+        fop_Ds = dire+'Ds_'+seed+'.dat'
+        position_data = np.genfromtxt(fop_str, skip_header=0)  
+        diffusion_data = np.genfromtxt(fop_Ds, skip_header=0, skip_footer=0)
+        return position_data, diffusion_data
+        
+def avg_diffusion_data(data, Np):
+    D_av = np.zeros(Np)
+    for j in range(0,3):
+        D_av += data[j::3,0]
+    D_av = D_av/3.
+    D_av = np.array(D_av)
+    D_av = D_av/cal_D0()
+    return D_av
+
+
