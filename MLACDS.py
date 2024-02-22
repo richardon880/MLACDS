@@ -63,7 +63,7 @@ VolumeCorrection = CubicSpline(p_snap, D_snap) # returns diffusion parameter as 
 #     delta = np.where(delta > 0.5 * dimensions, delta - dimensions, delta) #if diff between points is greater than half of the box dimensions then get distance through  
 #     return np.sqrt((delta**2).sum(axis=-1))
 
-def min_distance(x0, x1, dimensions, angular_info=False):
+def min_distance(x0, x1, dimensions):
     """
     Function Calculates Distance Between 2 points
     when using periodic boundary conditions.
@@ -74,14 +74,23 @@ def min_distance(x0, x1, dimensions, angular_info=False):
     delta = np.absolute(x0 - x1) # diff between points
     delta = np.where(delta > 0.5 * dimensions, delta - dimensions, delta) #if diff between points is greater than half of the box dimensions then get distance through
     R = np.sqrt((delta**2).sum(axis=-1))
-    if angular_info == False:
         return R
-    else:
-        angx = delta[0]/(R**2)
-        angy = delta[1]/(R**2)
-        angz = delta[2]/(R**2)
-        return R, angx, angy, angz
 
+def min_distance_full(x0, x1, dimensions):
+    """
+    Function Calculates Distance Between 2 points
+    when using periodic boundary conditions.
+    x0 = array like len 3 (x,y,z position)
+    x1 = as above, dist will be calculated between this and x0
+    dimensions = array like len 3 (x,y,z len of box)
+    """
+    delta = np.absolute(x0 - x1) # diff between points
+    delta = np.where(delta > 0.5 * dimensions, delta - dimensions, delta) #if diff between points is greater than half of the box dimensions then get distance through
+    R = np.sqrt((delta**2).sum(axis=-1))
+    angx = delta[0]/(R**2)
+    angy = delta[1]/(R**2)
+    angz = delta[2]/(R**2)
+    return R, angx, angy, angz
 
 def vec_r(x0, x1, dimensions):
     """
@@ -594,11 +603,17 @@ def get_data2_no_bond_order_or_dist(files,dire,f_r_cut1,f_r_cut2,l_s,l_s_names, 
 def make_dict(num_neighbours, dist, dist_inv, bond_order):
     if dist == True:
         dist_names = [f"l_{i}" for i in range(0,num_neighbours)]
+    else:
+        dist_names = []
     if dist_inv == True:
         dist_inv_names = [f"l_{i}_inv" for i in range(0,num_neighbours)]
+    else:
+        dist_inv_names = []
     if bond_order == True:
         bo_names = [f"bo_{i}" for i in range(0,num_neighbours)]
-    keys = dist_names + dist_inv_names + bo_names + ["vol", "n_neighbours", "Ds"]
+    else:
+        bo_names = []
+    keys = dist_names + dist_inv_names + bo_names + ["vol", "n_neighbours", "n_particles","Ds"]
     values = [[] for i in range(len(keys))]
     colname_dict = dict(zip(keys, values))
     return colname_dict
@@ -632,28 +647,49 @@ def get_data(path, dires, r_cut1, r_cut2, num_neighbours, dist=True, dist_inv=Tr
             local_vol_cut = r_cut1*a
             feature_cut = r_cut2*a
             v_local = cal_v_local(x,y,z,local_vol_cut,Np,a)
+            req_len = len(v_local)
             if bond_order == True:
-                bond_order_data, _ = cal_sp(x,y,z,feature_cut,neighbour_index,Np,a)
+                bond_order_data, num_nearby = cal_sp(x,y,z,feature_cut,neighbour_index,Np,a)
+                bond_order_data = bond_order_data.T
             else:
                 bond_order_data = np.array([])
-    
+                
             if dist == True:
                 nearest_neighbour_dists, num_nearby = cal_dis(x,y,z,feature_cut,neighbour_index,Np,a,num_neighbours+1, inverse=False)
+                nearest_neighbour_dists = nearest_neighbour_dists.T[1:]
             else:
                 nearest_neighbour_dists = np.array([])
-    
+
             if dist_inv == True:
                 nearest_neighbour_inv_dists, num_nearby = cal_dis(x,y,z,feature_cut,neighbour_index,Np,a,num_neighbours+1, inverse=True)
+                nearest_neighbour_inv_dists = nearest_neighbour_inv_dists.T[1:]
+
             else:
                 nearest_neighbour_inv_dists = np.array([])
-            data_tmp = np.vstack((nearest_neighbour_dists.T[1:],
-                                 nearest_neighbour_inv_dists.T[1:], bond_order_data.T, 
-                                 v_local, np.full(len(v_local), num_nearby), D_av))
-            for i in range(len(colnames)):
+
+            if dist == False and dist_inv == False and bond_order == False:
+                num_nearby = np.full(req_len, np.NaN)
+                
+            correct_data_array_list = []
+            data_array_list = []
+            data_array_list.append([np.array(array) for array in nearest_neighbour_dists])
+            data_array_list.append([np.array(array) for array in nearest_neighbour_inv_dists])
+            data_array_list.append([np.array(array) for array in bond_order_data])
+            data_array_list.append((v_local, num_nearby, #np.full(req_len, num_nearby),
+                               np.full(req_len, len(v_local)), D_av))
+            data_array_list = [arr for sublist in data_array_list for arr in sublist]
+
+            # for array in data_array_list:
+            #     if len(array) == req_len:
+            #         correct_data_array_list.append(array)
+            #     return correct_data_array_list
+            data_tmp = np.vstack(data_array_list)
+
+            for i in range(len(data_array_list)):
                 dataframe_dict[colnames[i]] = np.append(dataframe_dict[colnames[i]], data_tmp[i])
 
     df = pd.DataFrame(dataframe_dict)
-    return dataframe_dict
+    return df
 
 
 
