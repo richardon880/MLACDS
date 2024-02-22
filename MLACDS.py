@@ -74,9 +74,9 @@ def min_distance(x0, x1, dimensions):
     delta = np.absolute(x0 - x1) # diff between points
     delta = np.where(delta > 0.5 * dimensions, delta - dimensions, delta) #if diff between points is greater than half of the box dimensions then get distance through
     R = np.sqrt((delta**2).sum(axis=-1))
-        return R
+    return R
 
-def min_distance_full(x0, x1, dimensions):
+def min_distance_ang(x0, x1, dimensions):
     """
     Function Calculates Distance Between 2 points
     when using periodic boundary conditions.
@@ -122,47 +122,61 @@ def cal_dis(x,y,z,r_cut,ls,Np,a,N_N, inverse, angular_info=False):
     ######### Getting the neighbours list
     ii = []
     #loop through the particles
-    if angular_info == False:
-        for i in range(Np): #the ith particle
-            ri = np.array([x[i],y[i],z[i]]) #position of ith particle
-            tmp = [] #temp list to store neighbours of current particle
-            for j in range(Np): #the jth particle
-                rj = np.array([x[j],y[j],z[j]]) #position of the jth particle
+    for i in range(Np): #the ith particle
+        ri = np.array([x[i],y[i],z[i]]) #position of ith particle
+        tmp = [] #temp list to store neighbours of current particle
+        for j in range(Np): #the jth particle
+            rj = np.array([x[j],y[j],z[j]]) #position of the jth particle
                 #get the min distance between ith and jth particle taking into account periodic boundary conditions
-                d = min_distance(ri, rj, Ls)
+            d = min_distance(ri, rj, Ls)
     
-                if d + a[i] < r_cut[i] and i != j: #if dist from i to j is within r cut and are 2 diff particles
+            if d + a[i] < r_cut[i] and i != j: #if dist from i to j is within r cut and are 2 diff particles
         
-                    ql[i,j] = d
-                    tmp.append(j) #add j to tmp list of neighbours within r cut
-            ii.append(tmp) #add the list of neighbours to the list ii
-            n_neighbours[i] = len(tmp) #add the number of neighbours within r cut to n_neighbours
-        if inverse == True:
-            ql = -np.sort(-1/ql)[:,:N_N]
-        elif inverse == False:
-            ql = np.sort(ql)[:,:N_N]
-            
-    elif angular_info == True:
-        for i in range(Np): #the ith particle
-            ri = np.array([x[i],y[i],z[i]]) #position of ith particle
-            tmp = [] #temp list to store neighbours of current particle
-            for j in range(Np): #the jth particle
-                rj = np.array([x[j],y[j],z[j]]) #position of the jth particle
-                #get the min distance between ith and jth particle taking into account periodic boundary conditions
-                d, ang_info = min_distance(ri, rj, Ls, angular_info=True)
-    
-                if d + a[i] < r_cut[i] and i != j: #if dist from i to j is within r cut and are 2 diff particles
-        
-                    ql[i,j] = (d, ang_info)
-                    tmp.append(j) #add j to tmp list of neighbours within r cut
-            ii.append(tmp) #add the list of neighbours to the list ii
-            n_neighbours[i] = len(tmp) #add the number of neighbours within r cut to n_neighbours
-        if inverse == True:
-            ql = -np.sort(-1/ql[0])[:,:N_N]
-        elif inverse == False:
-            ql = np.sort(ql[0])[:,:N_N]
-            
+                ql[i,j] = d
+                tmp.append(j) #add j to tmp list of neighbours within r cut
+        ii.append(tmp) #add the list of neighbours to the list ii
+        n_neighbours[i] = len(tmp) #add the number of neighbours within r cut to n_neighbours
+    if inverse == True:
+        ql = -np.sort(-1/ql)[:,:N_N]
+    elif inverse == False:
+        ql = np.sort(ql)[:,:N_N]
+
     return ql,n_neighbours
+
+def cal_dis_angular(x,y,z,r_cut,ls,Np,a,N_N):
+    n_neighbours = np.zeros(Np) #array to store number of neighbours in for each particle 
+    ql = np.zeros((Np,Np)) #array to store the dist to each neighbour for each particle
+    qlx = np.zeros((Np,Np))
+    qly = np.zeros((Np,Np))
+    qlz = np.zeros((Np,Np))
+    ######### Getting the neighbours list
+    ii = []
+    #loop through the particles
+    for i in range(Np): #the ith particle
+        ri = np.array([x[i],y[i],z[i]]) #position of ith particle
+        tmp = [] #temp list to store neighbours of current particle
+        for j in range(Np): #the jth particle
+            rj = np.array([x[j],y[j],z[j]]) #position of the jth particle
+                #get the min distance between ith and jth particle taking into account periodic boundary conditions
+            d, angx, angy, angz = min_distance_ang(ri, rj, Ls)
+    
+            if d + a[i] < r_cut[i] and i != j: #if dist from i to j is within r cut and are 2 diff particles
+        
+                ql[i,j] = d
+                qlx[i,j] = angx
+                qly[i,j] = angy
+                qlz[i,j] = angz
+                
+                tmp.append(j) #add j to tmp list of neighbours within r cut
+        ii.append(tmp) #add the list of neighbours to the list ii
+        n_neighbours[i] = len(tmp) #add the number of neighbours within r cut to n_neighbours
+    
+    ql = -np.sort(-1/ql)[:,:N_N]
+    qlx = -np.sort(qlx)[:,:N_N]
+    qly = -np.sort(qly)[:,:N_N]
+    qlz = -np.sort(qlz)[:,:N_N]
+
+    return qlx, qly, qlz
 
 ### Volume Calculation Functions ###
 
@@ -600,20 +614,32 @@ def get_data2_no_bond_order_or_dist(files,dire,f_r_cut1,f_r_cut2,l_s,l_s_names, 
 
     return df
 
-def make_dict(num_neighbours, dist, dist_inv, bond_order):
+def make_dict(num_neighbours, dist, dist_inv, bond_order, angular):
     if dist == True:
         dist_names = [f"l_{i}" for i in range(0,num_neighbours)]
     else:
         dist_names = []
+        
     if dist_inv == True:
         dist_inv_names = [f"l_{i}_inv" for i in range(0,num_neighbours)]
     else:
         dist_inv_names = []
+        
+    if angular == True:
+        dist_inv_names_x = [f"l_{i}_x_inv" for i in range(0,num_neighbours)]
+        dist_inv_names_y = [f"l_{i}_y_inv" for i in range(0,num_neighbours)]
+        dist_inv_names_z = [f"l_{i}_z_inv" for i in range(0,num_neighbours)]
+    else:
+        dist_inv_names_x = []
+        dist_inv_names_y = []
+        dist_inv_names_z = []
+        
     if bond_order == True:
         bo_names = [f"bo_{i}" for i in range(0,num_neighbours)]
     else:
         bo_names = []
-    keys = dist_names + dist_inv_names + bo_names + ["vol", "n_neighbours", "n_particles","Ds"]
+        
+    keys = dist_names + dist_inv_names + dist_inv_names_x + dist_inv_names_y + dist_inv_names_z + bo_names + ["vol", "n_neighbours", "n_particles","Ds"]
     values = [[] for i in range(len(keys))]
     colname_dict = dict(zip(keys, values))
     return colname_dict
@@ -621,7 +647,7 @@ def make_dict(num_neighbours, dist, dist_inv, bond_order):
 def get_data(path, dires, r_cut1, r_cut2, num_neighbours, dist=True, dist_inv=True, angular=True, bond_order=True):
     dires = [path+dire for dire in dires]
     neighbour_index = list(range(0,num_neighbours))
-    dataframe_dict = make_dict(num_neighbours, dist, dist_inv, bond_order)
+    dataframe_dict = make_dict(num_neighbours, dist, dist_inv, bond_order, angular)
     colnames = list(dataframe_dict.keys())
     for dire in dires:
         #call function to get filenames from dires and box size for later
@@ -663,18 +689,35 @@ def get_data(path, dires, r_cut1, r_cut2, num_neighbours, dist=True, dist_inv=Tr
             if dist_inv == True:
                 nearest_neighbour_inv_dists, num_nearby = cal_dis(x,y,z,feature_cut,neighbour_index,Np,a,num_neighbours+1, inverse=True)
                 nearest_neighbour_inv_dists = nearest_neighbour_inv_dists.T[1:]
-
             else:
                 nearest_neighbour_inv_dists = np.array([])
 
+            if angular == True:
+                # angx, angy, angz
+                angx, angy, angz = cal_dis_angular(x,y,z,feature_cut,neighbour_index,Np,a,num_neighbours+1)
+                angx = angx.T[1:]
+                angy = angy.T[1:]
+                angz = angz.T[1:]
+            else:
+                angx, angy, angz = np.array([]), np.array([]), np.array([])
+
+            
             if dist == False and dist_inv == False and bond_order == False:
                 num_nearby = np.full(req_len, np.NaN)
                 
             correct_data_array_list = []
             data_array_list = []
+            
             data_array_list.append([np.array(array) for array in nearest_neighbour_dists])
+            
             data_array_list.append([np.array(array) for array in nearest_neighbour_inv_dists])
+            
+            data_array_list.append([np.array(array) for array in angx])
+            data_array_list.append([np.array(array) for array in angy])
+            data_array_list.append([np.array(array) for array in angz])
+
             data_array_list.append([np.array(array) for array in bond_order_data])
+            
             data_array_list.append((v_local, num_nearby, #np.full(req_len, num_nearby),
                                np.full(req_len, len(v_local)), D_av))
             data_array_list = [arr for sublist in data_array_list for arr in sublist]
