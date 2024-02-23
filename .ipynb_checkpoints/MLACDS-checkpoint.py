@@ -616,26 +616,26 @@ def get_data2_no_bond_order_or_dist(files,dire,f_r_cut1,f_r_cut2,l_s,l_s_names, 
 
 def make_dict(num_neighbours, dist, dist_inv, bond_order, angular):
     if dist == True:
-        dist_names = [f"l_{i}" for i in range(0,num_neighbours)]
+        dist_names = [f"l{i}" for i in range(0,num_neighbours)]
     else:
         dist_names = []
         
     if dist_inv == True:
-        dist_inv_names = [f"l_{i}_inv" for i in range(0,num_neighbours)]
+        dist_inv_names = [f"l{i}_inv" for i in range(0,num_neighbours)]
     else:
         dist_inv_names = []
         
     if angular == True:
-        dist_inv_names_x = [f"l_{i}_x_inv" for i in range(0,num_neighbours)]
-        dist_inv_names_y = [f"l_{i}_y_inv" for i in range(0,num_neighbours)]
-        dist_inv_names_z = [f"l_{i}_z_inv" for i in range(0,num_neighbours)]
+        dist_inv_names_x = [f"l{i}_x_inv" for i in range(0,num_neighbours)]
+        dist_inv_names_y = [f"l{i}_y_inv" for i in range(0,num_neighbours)]
+        dist_inv_names_z = [f"l{i}_z_inv" for i in range(0,num_neighbours)]
     else:
         dist_inv_names_x = []
         dist_inv_names_y = []
         dist_inv_names_z = []
         
     if bond_order == True:
-        bo_names = [f"bo_{i}" for i in range(0,num_neighbours)]
+        bo_names = [f"bo{i}" for i in range(0,num_neighbours)]
     else:
         bo_names = []
         

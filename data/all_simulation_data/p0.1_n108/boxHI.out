@@ -1,0 +1,96 @@
+WARNING: [input.c:362]
+Parameter not set epsilon_c
+***********************************
+WARNING: [input.c:362]
+Parameter not set kappa_c
+***********************************
+WARNING: [input.c:362]
+Parameter not set cutoff_c
+***********************************
+WARNING: [input.c:362]
+Parameter not set gamma_c
+***********************************
+WARNING: [input.c:362]
+Parameter not set lj_6_term
+***********************************
+WARNING: [input.c:362]
+Parameter not set E_ext
+***********************************
+WARNING: [input.c:362]
+Parameter not set E_magn
+***********************************
+WARNING: [input.c:362]
+Parameter not set E_type
+***********************************
+WARNING: [input.c:362]
+Parameter not set E_freq
+***********************************
+WARNING: [input.c:362]
+Parameter not set E_dir1
+***********************************
+WARNING: [input.c:362]
+Parameter not set E_dir2
+***********************************
+WARNING: [input.c:362]
+Parameter not set E_factor
+***********************************
+WARNING: [input.c:362]
+Parameter not set sphere_radius
+***********************************
+WARNING: [input.c:362]
+Parameter not set bond_lj_scale
+***********************************
+WARNING: [input.c:362]
+Parameter not set bond_c_scale
+***********************************
+WARNING: [input.c:362]
+Parameter not set restart
+***********************************
+WARNING: [input.c:362]
+Parameter not set move_attempts
+***********************************
+WARNING: [input.c:362]
+Parameter not set vel_grad_tensor
+***********************************
+WARNING: [input.c:362]
+Parameter not set MPI_nprow
+***********************************
+WARNING: [input.c:362]
+Parameter not set MPI_npcol
+***********************************
+WARNING: [input.c:362]
+Parameter not set MPI_block
+***********************************
+WARNING: [input.c:362]
+Parameter not set cuda_devices
+***********************************
+WARNING: [input.c:362]
+Parameter not set sboundary
+***********************************
+WARNING: [input.c:362]
+Parameter not set sboundary_A
+***********************************
+WARNING: [input.c:362]
+Parameter not set sboundary_n
+***********************************
+WARNING: [input.c:362]
+Parameter not set sboundary_cutoff
+***********************************
+WARNING: [input.c:362]
+Parameter not set geyer_on_the_fly
+***********************************
+WARNING: [input.c:362]
+Parameter not set cuda_block
+***********************************
+WARNING: [input.c:362]
+Parameter not set verlet_count
+***********************************
+WARNING: [input.c:362]
+Parameter not set verlet_roff
+***********************************
+WARNING: [input.c:362]
+Parameter not set conn_check
+***********************************
+WARNING: [input.c:464]
+Geyer on the fly turned off
+***********************************
