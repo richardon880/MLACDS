@@ -662,7 +662,7 @@ def get_data(path, dires, r_cut1, r_cut2, num_neighbours, dist=True, dist_inv=Tr
             fop_str = dire+seed+'.str'
             fop_Ds = dire+'Ds_'+seed+'.dat'
             position_data = np.genfromtxt(fop_str, skip_header=0)  
-            diffusion_data = np.genfromtxt(fop_Ds, skip_header=0, skip_footer=0)
+            diffusion_data = np.genfromtxt(fop_Ds, skip_header=0, skip_footer=3)
             x = position_data[:,3]
             y = position_data[:,4]
             z = position_data[:,5]
