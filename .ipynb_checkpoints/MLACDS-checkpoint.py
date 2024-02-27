@@ -29,25 +29,30 @@ def findparams(volfrac, N=None, L=None):
 
 
 ###These are the aevrage results for the "exact" calculation of Diffusion parameter. Will be used for interpolation to give the "theory curve" which can be used as a competitor model for the machine learning
-D_snap = np.array([0.6549626681427589,
+D_snap_N54 = np.array([0.6549626681427589,
  0.5415773484728538,
  0.45611420397539226,
  0.3899386738814587,
  0.32989963726772464,
  0.27904761273590456])
 
-p_snap= np.array([0.05,0.1,0.15,0.2,0.25,0.3])
+p_snap_N54 = np.array([0.05,0.1,0.15,0.2,0.25,0.3])
 
-stdD_snap = np.array([0.03135978350995926,
- 0.0369455245372216,
- 0.03509771542582867,
- 0.02964564689529907,
- 0.0264751917347454,
- 0.02262952233632323])
+D_snap_N72 = np.array([0.6780237696154513,
+ 0.5662030596489669,
+ 0.4798101973057051,
+ 0.40642269590756097,
+ 0.34433063924072516,
+ 0.2913446374466946,
+ 0.24534777460930482,
+ 0.20572326230795798])
+
+p_snap_N72 = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4]
 
 ### Competitor Model - Volume Correction ###
 #takes Local volume as input param
-VolumeCorrection = CubicSpline(p_snap, D_snap) # returns diffusion parameter as output
+VolumeCorrection_N54 = CubicSpline(p_snap_N54, D_snap_N54) # returns diffusion parameter as output
+VolumeCorrection_N72 = CubicSpline(p_snap_N72, D_snap_N72) # returns diffusion parameter as output
 
 
 ### Dist Calculation Functions ###

@@ -1,0 +1,2 @@
+pair_coeff 1 1 10.0 1.0 1.122462048309373
+pair_modify shift yes
