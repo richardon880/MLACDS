@@ -51,7 +51,7 @@ p_snap_N72 = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4]
 
 ### Competitor Model - Volume Correction ###
 #takes Local volume as input param
-VolumeCorrection_N54 = CubicSpline(p_snap_N54, D_snap_N54) # returns diffusion parameter as output
+VolumeCorrection = CubicSpline(p_snap_N54, D_snap_N54) # returns diffusion parameter as output
 VolumeCorrection_N72 = CubicSpline(p_snap_N72, D_snap_N72) # returns diffusion parameter as output
 
 
